@@ -19,6 +19,8 @@ type Employee struct {
 	Subordinates []int  `json:"subordinates"`
 }
 
+// We assume that employees are known in advance or change rarely so we can afford to recalculate the solution
+// For tests we will be able to mock the service or swap the implementation
 type CorporateDirectory interface {
 	Setup(employees []*Employee) error
 	GetCommonManager(first, second int) (*Employee, error)
@@ -26,13 +28,19 @@ type CorporateDirectory interface {
 	GetEmployees() ([]*Employee, error)
 }
 
+// Service implementation. Main functionality implemented by this service is ID resolution from client representation
+// to representation required by LCASolver interface
 type CorporateDirectoryService struct {
+	// Map to lookup employee index by his/her ID
 	idToIndex *sync.Map
 
+	// employees list
 	employees []*Employee
 
+	// Lock so we don't get into race conditions with simultaneous setup/common requests
 	setupMutex sync.RWMutex
-	solver     lca.LCASolver
+	// Solver implementation injected into this service
+	solver lca.LCASolver
 }
 
 func NewCorporateDirectoryService(solver lca.LCASolver) *CorporateDirectoryService {
@@ -42,6 +50,7 @@ func NewCorporateDirectoryService(solver lca.LCASolver) *CorporateDirectoryServi
 	}
 }
 
+// Setup service, preparing data structures for further queries
 func (dir *CorporateDirectoryService) Setup(employees []*Employee) error {
 	dir.setupMutex.Lock()
 	defer dir.setupMutex.Unlock()
@@ -59,6 +68,7 @@ func (dir *CorporateDirectoryService) Setup(employees []*Employee) error {
 		return ErrBossNotFound
 	}
 
+	// Prepare Employee ID -> Employee index in array map, making sure Employee IDs are unique
 	idToIndex := sync.Map{}
 	for idx, employee := range employees {
 		if _, ok := idToIndex.Load(employee.ID); ok {
@@ -67,6 +77,7 @@ func (dir *CorporateDirectoryService) Setup(employees []*Employee) error {
 		idToIndex.Store(employee.ID, idx)
 	}
 
+	// Prepare represenstion for LCASolver interface  while checking all the edges
 	nodesAdjList := make([][]int, len(employees))
 	for idx, node := range employees {
 		for _, child := range node.Subordinates {
@@ -78,6 +89,7 @@ func (dir *CorporateDirectoryService) Setup(employees []*Employee) error {
 		}
 	}
 
+	// Setup solver and if everything went well update service struct
 	err := dir.solver.Setup(nodesAdjList)
 	if err != nil {
 		return err
@@ -88,10 +100,12 @@ func (dir *CorporateDirectoryService) Setup(employees []*Employee) error {
 	return nil
 }
 
+// Actual request, get closest common manager for two employees by their ID
 func (dir *CorporateDirectoryService) GetCommonManager(first, second int) (*Employee, error) {
 	dir.setupMutex.RLock()
 	defer dir.setupMutex.RUnlock()
 
+	// Resolve indices
 	firstId, err := dir.resolveId(first)
 	if err != nil {
 		return nil, err
@@ -101,6 +115,7 @@ func (dir *CorporateDirectoryService) GetCommonManager(first, second int) (*Empl
 		return nil, err
 	}
 
+	// Find solution and return corresponding employee
 	commonId, err := dir.solver.SolveLCA(firstId, secondId)
 	if err != nil {
 		return nil, err
@@ -109,6 +124,7 @@ func (dir *CorporateDirectoryService) GetCommonManager(first, second int) (*Empl
 	return dir.employees[commonId], nil
 }
 
+// Convenience method to get an employee by ID
 func (dir *CorporateDirectoryService) GetEmployee(id int) (*Employee, error) {
 	dir.setupMutex.RLock()
 	defer dir.setupMutex.RUnlock()
@@ -121,6 +137,7 @@ func (dir *CorporateDirectoryService) GetEmployee(id int) (*Employee, error) {
 	return dir.employees[employeeId], nil
 }
 
+// Method to list all employees registered in the system
 func (dir *CorporateDirectoryService) GetEmployees() ([]*Employee, error) {
 	dir.setupMutex.RLock()
 	defer dir.setupMutex.RUnlock()
