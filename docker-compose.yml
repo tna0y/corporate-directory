@@ -1,0 +1,9 @@
+version: "3.5"
+
+
+services:
+  directory:
+    image: "tna0y/corporate-directory"
+    build: .
+    ports:
+      - 80:80
