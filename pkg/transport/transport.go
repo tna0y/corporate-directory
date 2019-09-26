@@ -4,6 +4,7 @@ import (
 	"context"
 	"corporate-directory/pkg/service"
 	"encoding/json"
+	"errors"
 	"github.com/go-kit/kit/endpoint"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/julienschmidt/httprouter"
@@ -101,9 +102,25 @@ func decodeSetupRequest(_ context.Context, r *http.Request) (interface{}, error)
 
 func decodeCommonManagerRequest(_ context.Context, r *http.Request) (interface{}, error) {
 	var request commonManagerRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		return nil, err
+	firstStr, ok := r.URL.Query()["first"]
+	if !ok {
+		return nil, errors.New(`'first' query param is missing`)
 	}
+	secondStr, ok := r.URL.Query()["second"]
+	if !ok {
+		return nil, errors.New(`'second' query param is missing`)
+	}
+	first, err := strconv.Atoi(firstStr[0])
+	if err != nil {
+		return nil, errors.New(`first must be an integer`)
+	}
+	second, err := strconv.Atoi(secondStr[0])
+	if err != nil {
+		return nil, errors.New(`second must be an integer`)
+	}
+	request.First = first
+	request.Second = second
+
 	return request, nil
 }
 
@@ -113,7 +130,7 @@ func decodeGetEmployeeRequest(_ context.Context, r *http.Request) (interface{}, 
 	idStr := params.ByName("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		return nil, err
+		return nil, errors.New(`id must be an integer`)
 	}
 	request.Id = id
 	return request, nil
