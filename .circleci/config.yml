@@ -2,7 +2,7 @@ version: 2.1
 executors:
   docker-publisher:
     environment:
-      IMAGE_NAME: tna0y/corporate-directory:
+      IMAGE_NAME: tna0y/corporate-directory
     docker:
       - image: circleci/buildpack-deps:stretch
 jobs:
