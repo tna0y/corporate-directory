@@ -1,0 +1,130 @@
+openapi: "3.0.0"
+info:
+  title: Corporate directory
+  description: Corporate directory service
+  version: 1.0.0
+
+paths:
+  /setup:
+    post:
+      summary: Submit list of employees. Subsequent calls overwrite previously submitted lists.
+      operationId: setup
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                employees:
+                  description: List of employees to submit. Must include an employee named "Claire" who must recursively reach all other employees through management relationship.
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/employee"
+      responses:
+        '200':
+          description: Any result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: error description, will be empty in case of success
+  /common:
+    get:
+      summary: Get closest common manager between two employees by their IDs
+      parameters:
+        - name: first
+          in: query
+          description: ID of the first employee
+          required: true
+          schema:
+            type: integer
+        - name: second
+          in: query
+          description: ID of the second employee
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Any result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: error description, will be empty in case of success
+                  employee:
+                    $ref: "#/components/schemas/employee"
+  /employees/{id}:
+    get:
+      summary: Get employee by id
+      parameters:
+        - name: id
+          in: path
+          description: ID of the first employee
+          required: true
+          schema:
+            type: integer
+
+      responses:
+        '200':
+          description: Any result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: error description, will be empty in case of success
+                  employee:
+                    $ref: "#/components/schemas/employee"
+  /employees:
+    get:
+      summary: Get all employees registered by last setup call
+      parameters:
+        - name: id
+          in: path
+          description: ID of the first employee
+          required: true
+          schema:
+            type: integer
+
+      responses:
+        '200':
+          description: Any result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: error description, will be empty in case of success
+                  employees:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/employee"
+
+components:
+  schemas:
+    employee:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique employee ID
+        name:
+          type: string
+          description: Employee name
+        subordinates:
+          type: array
+          description: List of employees' ids that are managed by this employee
+          items:
+            type: integer
+
